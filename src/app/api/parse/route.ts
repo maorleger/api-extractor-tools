@@ -23,6 +23,9 @@ import {
   ApiClass,
   ApiInterface,
   ReleaseTag,
+  ApiItemContainerMixin,
+  ApiExportedMixin,
+  ApiInitializerMixin,
 } from "@microsoft/api-extractor-model";
 import type {
   ApiNode,
@@ -30,6 +33,8 @@ import type {
   ParameterInfo,
   TypeParameterInfo,
   ParseResult,
+  JsModelView,
+  JsValue,
 } from "@/types/api-extractor";
 
 let nodeIdCounter = 0;
@@ -123,6 +128,328 @@ function extractReturnType(item: ApiItem): string | undefined {
   return undefined;
 }
 
+/**
+ * Convert a JS value to a serializable JsValue representation
+ */
+function toJsValue(value: unknown, seen: WeakSet<object>, depth: number = 0): JsValue {
+  // Prevent infinite recursion
+  if (depth > 5) {
+    return { type: "string", value: "[max depth reached]" };
+  }
+
+  if (value === undefined) {
+    return { type: "undefined" };
+  }
+  if (value === null) {
+    return { type: "null" };
+  }
+  if (typeof value === "string") {
+    return { type: "string", value };
+  }
+  if (typeof value === "number") {
+    return { type: "number", value };
+  }
+  if (typeof value === "boolean") {
+    return { type: "boolean", value };
+  }
+  if (typeof value === "function") {
+    return { type: "function", value: "[Function]" };
+  }
+  if (Array.isArray(value)) {
+    // Check for circular reference
+    if (seen.has(value)) {
+      return { type: "circular", value: "[Circular Array]" };
+    }
+    seen.add(value);
+    return {
+      type: "array",
+      value: value.map((v) => toJsValue(v, seen, depth + 1)),
+      length: value.length,
+    };
+  }
+  if (typeof value === "object") {
+    // Check for circular reference
+    if (seen.has(value)) {
+      return { type: "circular", value: "[Circular Object]" };
+    }
+    seen.add(value);
+
+    // Special handling for common API Extractor types
+    const obj = value as Record<string, unknown>;
+    
+    // If it has a 'text' property (like Excerpt), extract it simply
+    if ("text" in obj && typeof obj.text === "string") {
+      return {
+        type: "object",
+        value: {
+          text: { type: "string", value: obj.text },
+          isEmpty: toJsValue(obj.isEmpty, seen, depth + 1),
+        },
+      };
+    }
+
+    // For Parameter objects
+    if ("name" in obj && "parameterTypeExcerpt" in obj) {
+      return {
+        type: "object",
+        value: {
+          name: toJsValue(obj.name, seen, depth + 1),
+          parameterTypeExcerpt: toJsValue(obj.parameterTypeExcerpt, seen, depth + 1),
+          isOptional: toJsValue(obj.isOptional, seen, depth + 1),
+        },
+      };
+    }
+
+    // For TypeParameter objects
+    if ("name" in obj && "constraintExcerpt" in obj) {
+      return {
+        type: "object",
+        value: {
+          name: toJsValue(obj.name, seen, depth + 1),
+          constraintExcerpt: toJsValue(obj.constraintExcerpt, seen, depth + 1),
+          defaultTypeExcerpt: toJsValue(obj.defaultTypeExcerpt, seen, depth + 1),
+          isOptional: toJsValue(obj.isOptional, seen, depth + 1),
+        },
+      };
+    }
+
+    // Generic object - extract enumerable properties
+    const result: Record<string, JsValue> = {};
+    try {
+      const keys = Object.keys(obj).slice(0, 20); // Limit keys to prevent huge objects
+      for (const key of keys) {
+        try {
+          result[key] = toJsValue(obj[key], seen, depth + 1);
+        } catch {
+          result[key] = { type: "string", value: "[Error reading property]" };
+        }
+      }
+      if (Object.keys(obj).length > 20) {
+        result["..."] = { type: "string", value: `[${Object.keys(obj).length - 20} more properties]` };
+      }
+    } catch {
+      return { type: "string", value: "[Object]" };
+    }
+    return { type: "object", value: result };
+  }
+  return { type: "string", value: String(value) };
+}
+
+/**
+ * Extract comprehensive JS model from an ApiItem
+ */
+function extractJsModel(item: ApiItem): JsModelView {
+  const mixins: string[] = [];
+  const properties: Record<string, JsValue> = {};
+  const seen = new WeakSet<object>();
+
+  // Check each mixin and extract its properties
+  if (ApiNameMixin.isBaseClassOf(item)) {
+    mixins.push("ApiNameMixin");
+    properties["name"] = toJsValue(item.name, seen);
+  } else {
+    properties["name"] = { type: "undefined" };
+  }
+
+  if (ApiReleaseTagMixin.isBaseClassOf(item)) {
+    mixins.push("ApiReleaseTagMixin");
+    properties["releaseTag"] = toJsValue(getReleaseTagName(item.releaseTag), seen);
+  } else {
+    properties["releaseTag"] = { type: "undefined" };
+  }
+
+  if (ApiParameterListMixin.isBaseClassOf(item)) {
+    mixins.push("ApiParameterListMixin");
+    properties["parameters"] = toJsValue(
+      item.parameters.map((p) => ({
+        name: p.name,
+        type: p.parameterTypeExcerpt.text,
+        isOptional: p.isOptional,
+      })),
+      seen
+    );
+    properties["overloadIndex"] = toJsValue(item.overloadIndex, seen);
+  } else {
+    properties["parameters"] = { type: "undefined" };
+    properties["overloadIndex"] = { type: "undefined" };
+  }
+
+  if (ApiTypeParameterListMixin.isBaseClassOf(item)) {
+    mixins.push("ApiTypeParameterListMixin");
+    properties["typeParameters"] = toJsValue(
+      item.typeParameters.map((tp) => ({
+        name: tp.name,
+        constraint: tp.constraintExcerpt.text || undefined,
+        defaultType: tp.defaultTypeExcerpt.text || undefined,
+        isOptional: tp.isOptional,
+      })),
+      seen
+    );
+  } else {
+    properties["typeParameters"] = { type: "undefined" };
+  }
+
+  if (ApiReturnTypeMixin.isBaseClassOf(item)) {
+    mixins.push("ApiReturnTypeMixin");
+    properties["returnTypeExcerpt"] = toJsValue(
+      { text: item.returnTypeExcerpt.text, isEmpty: item.returnTypeExcerpt.isEmpty },
+      seen
+    );
+  } else {
+    properties["returnTypeExcerpt"] = { type: "undefined" };
+  }
+
+  if (ApiOptionalMixin.isBaseClassOf(item)) {
+    mixins.push("ApiOptionalMixin");
+    properties["isOptional"] = toJsValue(item.isOptional, seen);
+  } else {
+    properties["isOptional"] = { type: "undefined" };
+  }
+
+  if (ApiReadonlyMixin.isBaseClassOf(item)) {
+    mixins.push("ApiReadonlyMixin");
+    properties["isReadonly"] = toJsValue(item.isReadonly, seen);
+  } else {
+    properties["isReadonly"] = { type: "undefined" };
+  }
+
+  if (ApiStaticMixin.isBaseClassOf(item)) {
+    mixins.push("ApiStaticMixin");
+    properties["isStatic"] = toJsValue(item.isStatic, seen);
+  } else {
+    properties["isStatic"] = { type: "undefined" };
+  }
+
+  if (ApiAbstractMixin.isBaseClassOf(item)) {
+    mixins.push("ApiAbstractMixin");
+    properties["isAbstract"] = toJsValue(item.isAbstract, seen);
+  } else {
+    properties["isAbstract"] = { type: "undefined" };
+  }
+
+  if (ApiProtectedMixin.isBaseClassOf(item)) {
+    mixins.push("ApiProtectedMixin");
+    properties["isProtected"] = toJsValue(item.isProtected, seen);
+  } else {
+    properties["isProtected"] = { type: "undefined" };
+  }
+
+  if (ApiExportedMixin.isBaseClassOf(item)) {
+    mixins.push("ApiExportedMixin");
+    properties["isExported"] = toJsValue(item.isExported, seen);
+  } else {
+    properties["isExported"] = { type: "undefined" };
+  }
+
+  if (ApiInitializerMixin.isBaseClassOf(item)) {
+    mixins.push("ApiInitializerMixin");
+    properties["initializerExcerpt"] = toJsValue(
+      item.initializerExcerpt ? { text: item.initializerExcerpt.text, isEmpty: item.initializerExcerpt.isEmpty } : undefined,
+      seen
+    );
+  } else {
+    properties["initializerExcerpt"] = { type: "undefined" };
+  }
+
+  if (ApiItemContainerMixin.isBaseClassOf(item)) {
+    mixins.push("ApiItemContainerMixin");
+    properties["members"] = toJsValue(
+      item.members.map((m) => ({
+        kind: m.kind,
+        displayName: ApiNameMixin.isBaseClassOf(m) ? m.name : `(${m.kind})`,
+      })),
+      seen
+    );
+    properties["preserveMemberOrder"] = toJsValue(item.preserveMemberOrder, seen);
+  } else {
+    properties["members"] = { type: "undefined" };
+    properties["preserveMemberOrder"] = { type: "undefined" };
+  }
+
+  // Base ApiItem properties
+  properties["kind"] = toJsValue(item.kind, seen);
+  properties["canonicalReference"] = toJsValue(item.canonicalReference.toString(), seen);
+  properties["containerKey"] = toJsValue(item.containerKey, seen);
+
+  // ApiDocumentedItem
+  if (item instanceof ApiDocumentedItem) {
+    mixins.push("ApiDocumentedItem");
+    properties["tsdocComment"] = item.tsdocComment
+      ? toJsValue({ 
+          hasSummary: !!item.tsdocComment.summarySection,
+          hasRemarks: !!item.tsdocComment.remarksBlock,
+          hasReturns: !!item.tsdocComment.returnsBlock,
+          hasDeprecated: !!item.tsdocComment.deprecatedBlock,
+          paramCount: item.tsdocComment.params.count,
+          typeParamCount: item.tsdocComment.typeParams.count,
+        }, seen)
+      : { type: "undefined" };
+  } else {
+    properties["tsdocComment"] = { type: "undefined" };
+  }
+
+  // ApiDeclaredItem
+  if (item instanceof ApiDeclaredItem) {
+    mixins.push("ApiDeclaredItem");
+    properties["excerpt"] = toJsValue({ text: item.excerpt.text, isEmpty: item.excerpt.isEmpty }, seen);
+    properties["excerptTokens"] = toJsValue(
+      item.excerptTokens.map((t) => ({ kind: t.kind, text: t.text })),
+      seen
+    );
+    properties["fileUrlPath"] = toJsValue(item.fileUrlPath, seen);
+  } else {
+    properties["excerpt"] = { type: "undefined" };
+    properties["excerptTokens"] = { type: "undefined" };
+    properties["fileUrlPath"] = { type: "undefined" };
+  }
+
+  // Class-specific
+  if (item instanceof ApiClass) {
+    properties["extendsType"] = item.extendsType
+      ? toJsValue({ text: item.extendsType.excerpt.text }, seen)
+      : { type: "undefined" };
+    properties["implementsTypes"] = toJsValue(
+      item.implementsTypes.map((t) => ({ text: t.excerpt.text })),
+      seen
+    );
+  }
+
+  // Interface-specific
+  if (item instanceof ApiInterface) {
+    properties["extendsTypes"] = toJsValue(
+      item.extendsTypes.map((t) => ({ text: t.excerpt.text })),
+      seen
+    );
+  }
+
+  // Property-specific
+  if (item instanceof ApiPropertyItem) {
+    properties["propertyTypeExcerpt"] = toJsValue(
+      { text: item.propertyTypeExcerpt.text, isEmpty: item.propertyTypeExcerpt.isEmpty },
+      seen
+    );
+    properties["isEventProperty"] = toJsValue(item.isEventProperty, seen);
+  }
+
+  // Variable-specific
+  if (item instanceof ApiVariable) {
+    properties["variableTypeExcerpt"] = toJsValue(
+      { text: item.variableTypeExcerpt.text, isEmpty: item.variableTypeExcerpt.isEmpty },
+      seen
+    );
+  }
+
+  // TypeAlias-specific
+  if (item instanceof ApiTypeAlias) {
+    properties["typeExcerpt"] = toJsValue(
+      { text: item.typeExcerpt.text, isEmpty: item.typeExcerpt.isEmpty },
+      seen
+    );
+  }
+
+  return { mixins, properties };
+}
+
 function serializeApiItem(
   item: ApiItem,
   breadcrumb: BreadcrumbItem[],
@@ -199,6 +526,9 @@ function serializeApiItem(
   const canonicalRef = item.canonicalReference.toString();
   const rawJson = rawJsonMap.get(canonicalRef);
 
+  // Extract comprehensive JS model
+  const jsModel = extractJsModel(item);
+
   // Process children
   const children: ApiNode[] = [];
   for (const member of item.members) {
@@ -230,6 +560,7 @@ function serializeApiItem(
     children,
     breadcrumb: currentBreadcrumb,
     rawJson,
+    jsModel,
   };
 }
 

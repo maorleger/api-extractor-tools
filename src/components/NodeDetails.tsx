@@ -2,7 +2,74 @@
 
 import { useState } from "react";
 import { useViewer } from "@/context/ViewerContext";
-import type { ApiNode } from "@/types/api-extractor";
+import type { ApiNode, JsValue } from "@/types/api-extractor";
+
+/**
+ * Render a JsValue with proper formatting and colors
+ */
+function JsValueDisplay({ value, inline = false }: { value: JsValue; inline?: boolean }) {
+  switch (value.type) {
+    case "undefined":
+      return <span className="text-gray-500 italic">undefined</span>;
+    case "null":
+      return <span className="text-gray-500 italic">null</span>;
+    case "string":
+      return <span className="text-green-400">"{value.value}"</span>;
+    case "number":
+      return <span className="text-blue-400">{value.value}</span>;
+    case "boolean":
+      return <span className="text-yellow-400">{value.value ? "true" : "false"}</span>;
+    case "function":
+      return <span className="text-purple-400 italic">{value.value}</span>;
+    case "circular":
+      return <span className="text-red-400 italic">{value.value}</span>;
+    case "array":
+      if (value.length === 0) {
+        return <span className="text-gray-400">[] <span className="text-gray-500 text-xs">(empty)</span></span>;
+      }
+      if (inline) {
+        return <span className="text-gray-400">[{value.length} items]</span>;
+      }
+      return (
+        <div className="ml-4 border-l border-gray-700 pl-2">
+          <span className="text-gray-500 text-xs">Array({value.length})</span>
+          {value.value.map((item, i) => (
+            <div key={i} className="flex gap-2">
+              <span className="text-gray-500">[{i}]:</span>
+              <JsValueDisplay value={item} inline />
+            </div>
+          ))}
+        </div>
+      );
+    case "object":
+      const keys = Object.keys(value.value);
+      if (keys.length === 0) {
+        return <span className="text-gray-400">{"{}"}</span>;
+      }
+      if (inline) {
+        // For inline objects, show a condensed version
+        if (keys.includes("text")) {
+          const textVal = value.value["text"];
+          if (textVal.type === "string") {
+            return <span className="text-cyan-400">{`{ text: "${textVal.value}" }`}</span>;
+          }
+        }
+        return <span className="text-gray-400">{"{...}"}</span>;
+      }
+      return (
+        <div className="ml-4 border-l border-gray-700 pl-2">
+          {keys.map((key) => (
+            <div key={key} className="flex gap-2">
+              <span className="text-orange-400">{key}:</span>
+              <JsValueDisplay value={value.value[key]} inline />
+            </div>
+          ))}
+        </div>
+      );
+    default:
+      return <span className="text-gray-400">unknown</span>;
+  }
+}
 
 function Breadcrumb({ node }: { node: ApiNode }) {
   const { navigateToNode } = useViewer();
@@ -308,6 +375,45 @@ export default function NodeDetails() {
             </div>
           </Section>
         )}
+
+        {/* JS Model View */}
+        <Section title="JS Model" defaultOpen={false}>
+          {/* Mixins */}
+          <div className="mb-4">
+            <h4 className="text-sm font-medium text-gray-400 mb-2">Mixins Applied:</h4>
+            <div className="flex flex-wrap gap-2">
+              {selectedNode.jsModel.mixins.length > 0 ? (
+                selectedNode.jsModel.mixins.map((mixin) => (
+                  <span
+                    key={mixin}
+                    className="px-2 py-1 bg-purple-900/50 text-purple-300 rounded text-xs font-mono"
+                  >
+                    {mixin}
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-500 italic text-sm">No mixins</span>
+              )}
+            </div>
+          </div>
+
+          {/* Properties */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-400 mb-2">All Properties:</h4>
+            <div className="bg-gray-800 rounded p-3 font-mono text-sm overflow-x-auto max-h-[500px] overflow-y-auto">
+              {Object.entries(selectedNode.jsModel.properties).map(([key, value]) => (
+                <div key={key} className="py-1 border-b border-gray-700 last:border-b-0">
+                  <div className="flex gap-2">
+                    <span className="text-orange-400 shrink-0">{key}:</span>
+                    <div className="flex-1">
+                      <JsValueDisplay value={value} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
 
         {/* Raw JSON */}
         <Section title="Raw JSON Data" defaultOpen={false}>
