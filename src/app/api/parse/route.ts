@@ -3,6 +3,12 @@ import { writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
+
+// Force Node.js runtime (required for fs operations, not supported in Edge)
+export const runtime = "nodejs";
+
+// Vercel serverless function config
+export const maxDuration = 30; // seconds
 import {
   ApiModel,
   ApiItem,

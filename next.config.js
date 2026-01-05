@@ -1,8 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable server-side features for api-extractor-model
+  // Enable server-side features for api-extractor-model and its transitive dependencies
   experimental: {
-    serverComponentsExternalPackages: ["@microsoft/api-extractor-model"],
+    serverComponentsExternalPackages: [
+      "@microsoft/api-extractor-model",
+      "@microsoft/tsdoc",
+      "@microsoft/tsdoc-config",
+    ],
+    // Explicitly include tsdoc schema files that are resolved at runtime
+    outputFileTracingIncludes: {
+      "/api/parse": ["./node_modules/@microsoft/tsdoc/**/*"],
+    },
   },
 
   // Security headers
