@@ -14,7 +14,7 @@ function JsValueDisplay({ value, inline = false }: { value: JsValue; inline?: bo
     case "null":
       return <span className="italic text-gray-500">null</span>;
     case "string":
-      return <span className="text-green-400">"{value.value}"</span>;
+      return <span className="text-green-400">&quot;{value.value}&quot;</span>;
     case "number":
       return <span className="text-blue-400">{value.value}</span>;
     case "boolean":
