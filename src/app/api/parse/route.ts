@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { randomUUID } from "crypto";
 import {
   ApiModel,
   ApiItem,
@@ -36,6 +37,9 @@ import type {
   JsModelView,
   JsValue,
 } from "@/types/api-extractor";
+
+// Security constants
+const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB max payload
 
 let nodeIdCounter = 0;
 
@@ -591,6 +595,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<ParseResu
   let tempPath: string | null = null;
 
   try {
+    // Check content length header for early rejection
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_SIZE) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Payload too large. Maximum size is ${MAX_PAYLOAD_SIZE / 1024 / 1024}MB`,
+        },
+        { status: 413 }
+      );
+    }
+
     const body = await request.json();
     const jsonString = body.json as string;
 
@@ -601,14 +617,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<ParseResu
       });
     }
 
+    // Validate payload size
+    if (jsonString.length > MAX_PAYLOAD_SIZE) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Payload too large. Maximum size is ${MAX_PAYLOAD_SIZE / 1024 / 1024}MB`,
+        },
+        { status: 413 }
+      );
+    }
+
     // Parse the JSON string to validate and build raw JSON map
     let jsonObj: Record<string, unknown>;
     try {
       jsonObj = JSON.parse(jsonString);
-    } catch (e) {
+    } catch {
       return NextResponse.json({
         success: false,
-        error: `Invalid JSON: ${e instanceof Error ? e.message : "Parse error"}`,
+        error: "Invalid JSON: Parse error",
       });
     }
 
@@ -627,8 +654,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ParseResu
     // Reset node counter for each parse
     nodeIdCounter = 0;
 
-    // Write to a temporary file
-    tempPath = join(tmpdir(), `api-extractor-${Date.now()}.api.json`);
+    // Write to a temporary file with unique UUID to prevent collisions
+    const uniqueId = randomUUID();
+    tempPath = join(tmpdir(), `api-extractor-${uniqueId}.api.json`);
     writeFileSync(tempPath, jsonString, "utf-8");
 
     // Load using the API Extractor Model library
@@ -643,10 +671,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ParseResu
       data: rootNode,
     });
   } catch (error) {
+    // Log full error server-side for debugging
     console.error("Parse error:", error);
+
+    // Return sanitized error message to client
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : "An unexpected error occurred",
+      error: "Failed to parse API Extractor JSON. Please ensure the file is valid.",
     });
   } finally {
     // Clean up temp file
