@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  ReactNode,
-} from "react";
+import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import type { ApiNode } from "@/types/api-extractor";
 
 interface ViewerContextType {

@@ -52,8 +52,7 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ node, depth }: TreeNodeProps) {
-  const { selectedNode, setSelectedNode, expandedNodes, toggleNodeExpansion } =
-    useViewer();
+  const { selectedNode, setSelectedNode, expandedNodes, toggleNodeExpansion } = useViewer();
   const isSelected = selectedNode?.id === node.id;
   const isExpanded = expandedNodes.has(node.id);
   const hasChildren = node.children.length > 0;
@@ -73,23 +72,17 @@ function TreeNode({ node, depth }: TreeNodeProps) {
   return (
     <div>
       <div
-        className={`flex items-center py-1 px-2 cursor-pointer hover:bg-gray-700/50 
-                    transition-colors ${
-                      isSelected
-                        ? "bg-blue-900/50 border-l-2 border-blue-500"
-                        : ""
-                    }`}
+        className={`flex cursor-pointer items-center px-2 py-1 transition-colors hover:bg-gray-700/50 ${
+          isSelected ? "border-l-2 border-blue-500 bg-blue-900/50" : ""
+        }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={handleClick}
       >
         {/* Expand/Collapse Toggle */}
         <span
-          className={`w-4 h-4 flex items-center justify-center text-xs mr-1 
-                      ${
-                        hasChildren
-                          ? "cursor-pointer hover:bg-gray-600 rounded"
-                          : ""
-                      }`}
+          className={`mr-1 flex h-4 w-4 items-center justify-center text-xs ${
+            hasChildren ? "cursor-pointer rounded hover:bg-gray-600" : ""
+          }`}
           onClick={hasChildren ? handleToggle : undefined}
         >
           {hasChildren ? (isExpanded ? "▼" : "▶") : ""}
@@ -99,26 +92,24 @@ function TreeNode({ node, depth }: TreeNodeProps) {
         <span className="mr-2">{icon}</span>
 
         {/* Name */}
-        <span className={`${colorClass} font-medium truncate`}>
+        <span className={`${colorClass} truncate font-medium`}>
           {node.name || `(${node.kind})`}
         </span>
 
         {/* Kind badge */}
-        <span className="ml-2 text-xs text-gray-500 hidden group-hover:inline">
-          {node.kind}
-        </span>
+        <span className="ml-2 hidden text-xs text-gray-500 group-hover:inline">{node.kind}</span>
 
         {/* Release tag badge */}
         {node.releaseTag && node.releaseTag !== "Public" && (
           <span
-            className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+            className={`ml-2 rounded px-1.5 py-0.5 text-xs ${
               node.releaseTag === "Beta"
                 ? "bg-yellow-900/50 text-yellow-400"
                 : node.releaseTag === "Alpha"
-                ? "bg-orange-900/50 text-orange-400"
-                : node.releaseTag === "Internal"
-                ? "bg-red-900/50 text-red-400"
-                : "bg-gray-700 text-gray-400"
+                  ? "bg-orange-900/50 text-orange-400"
+                  : node.releaseTag === "Internal"
+                    ? "bg-red-900/50 text-red-400"
+                    : "bg-gray-700 text-gray-400"
             }`}
           >
             {node.releaseTag.toLowerCase()}
@@ -143,14 +134,14 @@ export default function TreeView() {
 
   if (!parsedTree) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-500">
+      <div className="flex h-full items-center justify-center text-gray-500">
         Parse JSON to view the API tree
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto tree-scrollbar bg-gray-850">
+    <div className="tree-scrollbar bg-gray-850 h-full overflow-auto">
       <div className="py-2">
         <TreeNode node={parsedTree} depth={0} />
       </div>

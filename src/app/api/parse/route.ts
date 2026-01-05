@@ -66,16 +66,10 @@ function extractDocComment(item: ApiItem): string | undefined {
       let text = "";
       const extractText = (node: unknown): void => {
         if (node && typeof node === "object") {
-          if (
-            "text" in node &&
-            typeof (node as { text: unknown }).text === "string"
-          ) {
+          if ("text" in node && typeof (node as { text: unknown }).text === "string") {
             text += (node as { text: string }).text;
           }
-          if (
-            "nodes" in node &&
-            Array.isArray((node as { nodes: unknown[] }).nodes)
-          ) {
+          if ("nodes" in node && Array.isArray((node as { nodes: unknown[] }).nodes)) {
             for (const child of (node as { nodes: unknown[] }).nodes) {
               extractText(child);
             }
@@ -108,10 +102,7 @@ function extractParameters(item: ApiItem): ParameterInfo[] | undefined {
 }
 
 function extractTypeParameters(item: ApiItem): TypeParameterInfo[] | undefined {
-  if (
-    ApiTypeParameterListMixin.isBaseClassOf(item) &&
-    item.typeParameters.length > 0
-  ) {
+  if (ApiTypeParameterListMixin.isBaseClassOf(item) && item.typeParameters.length > 0) {
     return item.typeParameters.map((tp) => ({
       name: tp.name,
       constraint: tp.constraintExcerpt.text.trim() || undefined,
@@ -176,7 +167,7 @@ function toJsValue(value: unknown, seen: WeakSet<object>, depth: number = 0): Js
 
     // Special handling for common API Extractor types
     const obj = value as Record<string, unknown>;
-    
+
     // If it has a 'text' property (like Excerpt), extract it simply
     if ("text" in obj && typeof obj.text === "string") {
       return {
@@ -225,7 +216,10 @@ function toJsValue(value: unknown, seen: WeakSet<object>, depth: number = 0): Js
         }
       }
       if (Object.keys(obj).length > 20) {
-        result["..."] = { type: "string", value: `[${Object.keys(obj).length - 20} more properties]` };
+        result["..."] = {
+          type: "string",
+          value: `[${Object.keys(obj).length - 20} more properties]`,
+        };
       }
     } catch {
       return { type: "string", value: "[Object]" };
@@ -292,7 +286,10 @@ function extractJsModel(item: ApiItem): JsModelView {
   if (ApiReturnTypeMixin.isBaseClassOf(item)) {
     mixins.push("ApiReturnTypeMixin");
     properties["returnTypeExcerpt"] = toJsValue(
-      { text: item.returnTypeExcerpt.text, isEmpty: item.returnTypeExcerpt.isEmpty },
+      {
+        text: item.returnTypeExcerpt.text,
+        isEmpty: item.returnTypeExcerpt.isEmpty,
+      },
       seen
     );
   } else {
@@ -344,7 +341,12 @@ function extractJsModel(item: ApiItem): JsModelView {
   if (ApiInitializerMixin.isBaseClassOf(item)) {
     mixins.push("ApiInitializerMixin");
     properties["initializerExcerpt"] = toJsValue(
-      item.initializerExcerpt ? { text: item.initializerExcerpt.text, isEmpty: item.initializerExcerpt.isEmpty } : undefined,
+      item.initializerExcerpt
+        ? {
+            text: item.initializerExcerpt.text,
+            isEmpty: item.initializerExcerpt.isEmpty,
+          }
+        : undefined,
       seen
     );
   } else {
@@ -375,14 +377,17 @@ function extractJsModel(item: ApiItem): JsModelView {
   if (item instanceof ApiDocumentedItem) {
     mixins.push("ApiDocumentedItem");
     properties["tsdocComment"] = item.tsdocComment
-      ? toJsValue({ 
-          hasSummary: !!item.tsdocComment.summarySection,
-          hasRemarks: !!item.tsdocComment.remarksBlock,
-          hasReturns: !!item.tsdocComment.returnsBlock,
-          hasDeprecated: !!item.tsdocComment.deprecatedBlock,
-          paramCount: item.tsdocComment.params.count,
-          typeParamCount: item.tsdocComment.typeParams.count,
-        }, seen)
+      ? toJsValue(
+          {
+            hasSummary: !!item.tsdocComment.summarySection,
+            hasRemarks: !!item.tsdocComment.remarksBlock,
+            hasReturns: !!item.tsdocComment.returnsBlock,
+            hasDeprecated: !!item.tsdocComment.deprecatedBlock,
+            paramCount: item.tsdocComment.params.count,
+            typeParamCount: item.tsdocComment.typeParams.count,
+          },
+          seen
+        )
       : { type: "undefined" };
   } else {
     properties["tsdocComment"] = { type: "undefined" };
@@ -391,7 +396,10 @@ function extractJsModel(item: ApiItem): JsModelView {
   // ApiDeclaredItem
   if (item instanceof ApiDeclaredItem) {
     mixins.push("ApiDeclaredItem");
-    properties["excerpt"] = toJsValue({ text: item.excerpt.text, isEmpty: item.excerpt.isEmpty }, seen);
+    properties["excerpt"] = toJsValue(
+      { text: item.excerpt.text, isEmpty: item.excerpt.isEmpty },
+      seen
+    );
     properties["excerptTokens"] = toJsValue(
       item.excerptTokens.map((t) => ({ kind: t.kind, text: t.text })),
       seen
@@ -425,7 +433,10 @@ function extractJsModel(item: ApiItem): JsModelView {
   // Property-specific
   if (item instanceof ApiPropertyItem) {
     properties["propertyTypeExcerpt"] = toJsValue(
-      { text: item.propertyTypeExcerpt.text, isEmpty: item.propertyTypeExcerpt.isEmpty },
+      {
+        text: item.propertyTypeExcerpt.text,
+        isEmpty: item.propertyTypeExcerpt.isEmpty,
+      },
       seen
     );
     properties["isEventProperty"] = toJsValue(item.isEventProperty, seen);
@@ -434,7 +445,10 @@ function extractJsModel(item: ApiItem): JsModelView {
   // Variable-specific
   if (item instanceof ApiVariable) {
     properties["variableTypeExcerpt"] = toJsValue(
-      { text: item.variableTypeExcerpt.text, isEmpty: item.variableTypeExcerpt.isEmpty },
+      {
+        text: item.variableTypeExcerpt.text,
+        isEmpty: item.variableTypeExcerpt.isEmpty,
+      },
       seen
     );
   }
@@ -472,21 +486,11 @@ function serializeApiItem(
   }
 
   // Extract modifiers
-  const isOptional = ApiOptionalMixin.isBaseClassOf(item)
-    ? item.isOptional
-    : undefined;
-  const isReadonly = ApiReadonlyMixin.isBaseClassOf(item)
-    ? item.isReadonly
-    : undefined;
-  const isStatic = ApiStaticMixin.isBaseClassOf(item)
-    ? item.isStatic
-    : undefined;
-  const isAbstract = ApiAbstractMixin.isBaseClassOf(item)
-    ? item.isAbstract
-    : undefined;
-  const isProtected = ApiProtectedMixin.isBaseClassOf(item)
-    ? item.isProtected
-    : undefined;
+  const isOptional = ApiOptionalMixin.isBaseClassOf(item) ? item.isOptional : undefined;
+  const isReadonly = ApiReadonlyMixin.isBaseClassOf(item) ? item.isReadonly : undefined;
+  const isStatic = ApiStaticMixin.isBaseClassOf(item) ? item.isStatic : undefined;
+  const isAbstract = ApiAbstractMixin.isBaseClassOf(item) ? item.isAbstract : undefined;
+  const isProtected = ApiProtectedMixin.isBaseClassOf(item) ? item.isProtected : undefined;
 
   // Extract property/variable types
   let propertyType: string | undefined;
@@ -583,9 +587,7 @@ function buildRawJsonMap(
   }
 }
 
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ParseResult>> {
+export async function POST(request: NextRequest): Promise<NextResponse<ParseResult>> {
   let tempPath: string | null = null;
 
   try {
@@ -606,9 +608,7 @@ export async function POST(
     } catch (e) {
       return NextResponse.json({
         success: false,
-        error: `Invalid JSON: ${
-          e instanceof Error ? e.message : "Parse error"
-        }`,
+        error: `Invalid JSON: ${e instanceof Error ? e.message : "Parse error"}`,
       });
     }
 
@@ -646,8 +646,7 @@ export async function POST(
     console.error("Parse error:", error);
     return NextResponse.json({
       success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
+      error: error instanceof Error ? error.message : "An unexpected error occurred",
     });
   } finally {
     // Clean up temp file

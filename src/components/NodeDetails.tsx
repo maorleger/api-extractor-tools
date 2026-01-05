@@ -10,9 +10,9 @@ import type { ApiNode, JsValue } from "@/types/api-extractor";
 function JsValueDisplay({ value, inline = false }: { value: JsValue; inline?: boolean }) {
   switch (value.type) {
     case "undefined":
-      return <span className="text-gray-500 italic">undefined</span>;
+      return <span className="italic text-gray-500">undefined</span>;
     case "null":
-      return <span className="text-gray-500 italic">null</span>;
+      return <span className="italic text-gray-500">null</span>;
     case "string":
       return <span className="text-green-400">"{value.value}"</span>;
     case "number":
@@ -20,19 +20,23 @@ function JsValueDisplay({ value, inline = false }: { value: JsValue; inline?: bo
     case "boolean":
       return <span className="text-yellow-400">{value.value ? "true" : "false"}</span>;
     case "function":
-      return <span className="text-purple-400 italic">{value.value}</span>;
+      return <span className="italic text-purple-400">{value.value}</span>;
     case "circular":
-      return <span className="text-red-400 italic">{value.value}</span>;
+      return <span className="italic text-red-400">{value.value}</span>;
     case "array":
       if (value.length === 0) {
-        return <span className="text-gray-400">[] <span className="text-gray-500 text-xs">(empty)</span></span>;
+        return (
+          <span className="text-gray-400">
+            [] <span className="text-xs text-gray-500">(empty)</span>
+          </span>
+        );
       }
       if (inline) {
         return <span className="text-gray-400">[{value.length} items]</span>;
       }
       return (
         <div className="ml-4 border-l border-gray-700 pl-2">
-          <span className="text-gray-500 text-xs">Array({value.length})</span>
+          <span className="text-xs text-gray-500">Array({value.length})</span>
           {value.value.map((item, i) => (
             <div key={i} className="flex gap-2">
               <span className="text-gray-500">[{i}]:</span>
@@ -75,10 +79,10 @@ function Breadcrumb({ node }: { node: ApiNode }) {
   const { navigateToNode } = useViewer();
 
   return (
-    <div className="flex items-center flex-wrap gap-1 text-sm">
+    <div className="flex flex-wrap items-center gap-1 text-sm">
       {node.breadcrumb.map((item, index) => (
         <span key={item.id} className="flex items-center">
-          {index > 0 && <span className="text-gray-500 mx-1">›</span>}
+          {index > 0 && <span className="mx-1 text-gray-500">›</span>}
           <button
             onClick={() => navigateToNode(item.id)}
             className="text-blue-400 hover:text-blue-300 hover:underline"
@@ -103,11 +107,11 @@ function PropertyRow({
   if (value === undefined || value === null || value === "") return null;
 
   return (
-    <div className="py-2 border-b border-gray-700">
+    <div className="border-b border-gray-700 py-2">
       <dt className="text-sm font-medium text-gray-400">{label}</dt>
       <dd
         className={`mt-1 text-sm text-gray-200 ${
-          mono ? "font-mono bg-gray-800 p-2 rounded overflow-x-auto" : ""
+          mono ? "overflow-x-auto rounded bg-gray-800 p-2 font-mono" : ""
         }`}
       >
         {value}
@@ -131,7 +135,7 @@ function Section({
     <div className="border-b border-gray-700">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between py-3 px-4 hover:bg-gray-800/50 transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-gray-800/50"
       >
         <span className="font-medium text-gray-200">{title}</span>
         <span className="text-gray-500">{isOpen ? "▼" : "▶"}</span>
@@ -147,36 +151,36 @@ export default function NodeDetails() {
 
   if (!selectedNode) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-500">
+      <div className="flex h-full items-center justify-center text-gray-500">
         <div className="text-center">
           <p className="text-lg">Select a node to view details</p>
-          <p className="text-sm mt-2">Click on any item in the tree</p>
+          <p className="mt-2 text-sm">Click on any item in the tree</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto tree-scrollbar">
+    <div className="tree-scrollbar h-full overflow-auto">
       {/* Header */}
-      <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-4">
+      <div className="sticky top-0 border-b border-gray-700 bg-gray-800 p-4">
         <Breadcrumb node={selectedNode} />
-        <h2 className="text-xl font-bold mt-2 text-white">
+        <h2 className="mt-2 text-xl font-bold text-white">
           {selectedNode.name || `(${selectedNode.kind})`}
         </h2>
-        <span className="inline-block mt-1 text-sm px-2 py-1 bg-gray-700 rounded text-gray-300">
+        <span className="mt-1 inline-block rounded bg-gray-700 px-2 py-1 text-sm text-gray-300">
           {selectedNode.kind}
         </span>
         {selectedNode.releaseTag && (
           <span
-            className={`inline-block mt-1 ml-2 text-sm px-2 py-1 rounded ${
+            className={`ml-2 mt-1 inline-block rounded px-2 py-1 text-sm ${
               selectedNode.releaseTag === "Public"
                 ? "bg-green-900/50 text-green-400"
                 : selectedNode.releaseTag === "Beta"
-                ? "bg-yellow-900/50 text-yellow-400"
-                : selectedNode.releaseTag === "Alpha"
-                ? "bg-orange-900/50 text-orange-400"
-                : "bg-red-900/50 text-red-400"
+                  ? "bg-yellow-900/50 text-yellow-400"
+                  : selectedNode.releaseTag === "Alpha"
+                    ? "bg-orange-900/50 text-orange-400"
+                    : "bg-red-900/50 text-red-400"
             }`}
           >
             @{selectedNode.releaseTag.toLowerCase()}
@@ -189,16 +193,9 @@ export default function NodeDetails() {
         {/* Basic Info */}
         <Section title="Basic Information">
           <dl>
-            <PropertyRow
-              label="Canonical Reference"
-              value={selectedNode.canonicalReference}
-              mono
-            />
+            <PropertyRow label="Canonical Reference" value={selectedNode.canonicalReference} mono />
             {selectedNode.docComment && (
-              <PropertyRow
-                label="Documentation"
-                value={selectedNode.docComment}
-              />
+              <PropertyRow label="Documentation" value={selectedNode.docComment} />
             )}
           </dl>
         </Section>
@@ -206,7 +203,7 @@ export default function NodeDetails() {
         {/* Declaration */}
         {selectedNode.excerpt && (
           <Section title="Declaration">
-            <pre className="font-mono text-sm bg-gray-800 p-3 rounded overflow-x-auto text-gray-200 whitespace-pre-wrap">
+            <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-gray-800 p-3 font-mono text-sm text-gray-200">
               {selectedNode.excerpt}
             </pre>
           </Section>
@@ -221,27 +218,27 @@ export default function NodeDetails() {
           <Section title="Modifiers">
             <div className="flex flex-wrap gap-2">
               {selectedNode.isOptional && (
-                <span className="px-2 py-1 bg-purple-900/50 text-purple-400 rounded text-sm">
+                <span className="rounded bg-purple-900/50 px-2 py-1 text-sm text-purple-400">
                   optional
                 </span>
               )}
               {selectedNode.isReadonly && (
-                <span className="px-2 py-1 bg-blue-900/50 text-blue-400 rounded text-sm">
+                <span className="rounded bg-blue-900/50 px-2 py-1 text-sm text-blue-400">
                   readonly
                 </span>
               )}
               {selectedNode.isStatic && (
-                <span className="px-2 py-1 bg-cyan-900/50 text-cyan-400 rounded text-sm">
+                <span className="rounded bg-cyan-900/50 px-2 py-1 text-sm text-cyan-400">
                   static
                 </span>
               )}
               {selectedNode.isAbstract && (
-                <span className="px-2 py-1 bg-orange-900/50 text-orange-400 rounded text-sm">
+                <span className="rounded bg-orange-900/50 px-2 py-1 text-sm text-orange-400">
                   abstract
                 </span>
               )}
               {selectedNode.isProtected && (
-                <span className="px-2 py-1 bg-yellow-900/50 text-yellow-400 rounded text-sm">
+                <span className="rounded bg-yellow-900/50 px-2 py-1 text-sm text-yellow-400">
                   protected
                 </span>
               )}
@@ -250,51 +247,39 @@ export default function NodeDetails() {
         )}
 
         {/* Type Parameters */}
-        {selectedNode.typeParameters &&
-          selectedNode.typeParameters.length > 0 && (
-            <Section title="Type Parameters">
-              <div className="space-y-2">
-                {selectedNode.typeParameters.map((tp, i) => (
-                  <div key={i} className="bg-gray-800 p-2 rounded">
-                    <span className="font-mono text-blue-400">{tp.name}</span>
-                    {tp.constraint && (
-                      <span className="text-gray-400 ml-2">
-                        extends{" "}
-                        <span className="font-mono text-green-400">
-                          {tp.constraint}
-                        </span>
-                      </span>
-                    )}
-                    {tp.defaultType && (
-                      <span className="text-gray-400 ml-2">
-                        ={" "}
-                        <span className="font-mono text-yellow-400">
-                          {tp.defaultType}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
+        {selectedNode.typeParameters && selectedNode.typeParameters.length > 0 && (
+          <Section title="Type Parameters">
+            <div className="space-y-2">
+              {selectedNode.typeParameters.map((tp, i) => (
+                <div key={i} className="rounded bg-gray-800 p-2">
+                  <span className="font-mono text-blue-400">{tp.name}</span>
+                  {tp.constraint && (
+                    <span className="ml-2 text-gray-400">
+                      extends <span className="font-mono text-green-400">{tp.constraint}</span>
+                    </span>
+                  )}
+                  {tp.defaultType && (
+                    <span className="ml-2 text-gray-400">
+                      = <span className="font-mono text-yellow-400">{tp.defaultType}</span>
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         {/* Parameters */}
         {selectedNode.parameters && selectedNode.parameters.length > 0 && (
           <Section title="Parameters">
             <div className="space-y-2">
               {selectedNode.parameters.map((param, i) => (
-                <div
-                  key={i}
-                  className="bg-gray-800 p-2 rounded flex items-center"
-                >
+                <div key={i} className="flex items-center rounded bg-gray-800 p-2">
                   <span className="font-mono text-orange-400">
                     {param.name}
-                    {param.isOptional && (
-                      <span className="text-gray-500">?</span>
-                    )}
+                    {param.isOptional && <span className="text-gray-500">?</span>}
                   </span>
-                  <span className="text-gray-500 mx-2">:</span>
+                  <span className="mx-2 text-gray-500">:</span>
                   <span className="font-mono text-green-400">{param.type}</span>
                 </div>
               ))}
@@ -305,21 +290,17 @@ export default function NodeDetails() {
         {/* Return Type */}
         {selectedNode.returnType && (
           <Section title="Return Type">
-            <pre className="font-mono text-sm bg-gray-800 p-3 rounded text-green-400">
+            <pre className="rounded bg-gray-800 p-3 font-mono text-sm text-green-400">
               {selectedNode.returnType}
             </pre>
           </Section>
         )}
 
         {/* Type Information */}
-        {(selectedNode.propertyType ||
-          selectedNode.variableType ||
-          selectedNode.typeAliasType) && (
+        {(selectedNode.propertyType || selectedNode.variableType || selectedNode.typeAliasType) && (
           <Section title="Type">
-            <pre className="font-mono text-sm bg-gray-800 p-3 rounded text-green-400 overflow-x-auto whitespace-pre-wrap">
-              {selectedNode.propertyType ||
-                selectedNode.variableType ||
-                selectedNode.typeAliasType}
+            <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-gray-800 p-3 font-mono text-sm text-green-400">
+              {selectedNode.propertyType || selectedNode.variableType || selectedNode.typeAliasType}
             </pre>
           </Section>
         )}
@@ -331,45 +312,30 @@ export default function NodeDetails() {
           <Section title="Inheritance">
             <dl>
               {selectedNode.extendsType && (
+                <PropertyRow label="Extends" value={selectedNode.extendsType} mono />
+              )}
+              {selectedNode.implementsTypes && selectedNode.implementsTypes.length > 0 && (
                 <PropertyRow
-                  label="Extends"
-                  value={selectedNode.extendsType}
+                  label="Implements"
+                  value={selectedNode.implementsTypes.join(", ")}
                   mono
                 />
               )}
-              {selectedNode.implementsTypes &&
-                selectedNode.implementsTypes.length > 0 && (
-                  <PropertyRow
-                    label="Implements"
-                    value={selectedNode.implementsTypes.join(", ")}
-                    mono
-                  />
-                )}
-              {selectedNode.extendsTypes &&
-                selectedNode.extendsTypes.length > 0 && (
-                  <PropertyRow
-                    label="Extends"
-                    value={selectedNode.extendsTypes.join(", ")}
-                    mono
-                  />
-                )}
+              {selectedNode.extendsTypes && selectedNode.extendsTypes.length > 0 && (
+                <PropertyRow label="Extends" value={selectedNode.extendsTypes.join(", ")} mono />
+              )}
             </dl>
           </Section>
         )}
 
         {/* Children Summary */}
         {selectedNode.children.length > 0 && (
-          <Section
-            title={`Members (${selectedNode.children.length})`}
-            defaultOpen={false}
-          >
+          <Section title={`Members (${selectedNode.children.length})`} defaultOpen={false}>
             <div className="space-y-1">
               {selectedNode.children.map((child) => (
                 <div key={child.id} className="flex items-center text-sm">
-                  <span className="text-gray-500 w-24">{child.kind}</span>
-                  <span className="text-gray-300">
-                    {child.name || `(${child.kind})`}
-                  </span>
+                  <span className="w-24 text-gray-500">{child.kind}</span>
+                  <span className="text-gray-300">{child.name || `(${child.kind})`}</span>
                 </div>
               ))}
             </div>
@@ -380,31 +346,31 @@ export default function NodeDetails() {
         <Section title="JS Model" defaultOpen={false}>
           {/* Mixins */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-400 mb-2">Mixins Applied:</h4>
+            <h4 className="mb-2 text-sm font-medium text-gray-400">Mixins Applied:</h4>
             <div className="flex flex-wrap gap-2">
               {selectedNode.jsModel.mixins.length > 0 ? (
                 selectedNode.jsModel.mixins.map((mixin) => (
                   <span
                     key={mixin}
-                    className="px-2 py-1 bg-purple-900/50 text-purple-300 rounded text-xs font-mono"
+                    className="rounded bg-purple-900/50 px-2 py-1 font-mono text-xs text-purple-300"
                   >
                     {mixin}
                   </span>
                 ))
               ) : (
-                <span className="text-gray-500 italic text-sm">No mixins</span>
+                <span className="text-sm italic text-gray-500">No mixins</span>
               )}
             </div>
           </div>
 
           {/* Properties */}
           <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-2">All Properties:</h4>
-            <div className="bg-gray-800 rounded p-3 font-mono text-sm overflow-x-auto max-h-[500px] overflow-y-auto">
+            <h4 className="mb-2 text-sm font-medium text-gray-400">All Properties:</h4>
+            <div className="max-h-[500px] overflow-x-auto overflow-y-auto rounded bg-gray-800 p-3 font-mono text-sm">
               {Object.entries(selectedNode.jsModel.properties).map(([key, value]) => (
-                <div key={key} className="py-1 border-b border-gray-700 last:border-b-0">
+                <div key={key} className="border-b border-gray-700 py-1 last:border-b-0">
                   <div className="flex gap-2">
-                    <span className="text-orange-400 shrink-0">{key}:</span>
+                    <span className="shrink-0 text-orange-400">{key}:</span>
                     <div className="flex-1">
                       <JsValueDisplay value={value} />
                     </div>
@@ -419,12 +385,12 @@ export default function NodeDetails() {
         <Section title="Raw JSON Data" defaultOpen={false}>
           <button
             onClick={() => setShowRawJson(!showRawJson)}
-            className="text-sm text-blue-400 hover:text-blue-300 mb-2"
+            className="mb-2 text-sm text-blue-400 hover:text-blue-300"
           >
             {showRawJson ? "Hide" : "Show"} raw JSON
           </button>
           {showRawJson && selectedNode.rawJson && (
-            <pre className="font-mono text-xs bg-gray-800 p-3 rounded overflow-x-auto text-gray-300 max-h-96">
+            <pre className="max-h-96 overflow-x-auto rounded bg-gray-800 p-3 font-mono text-xs text-gray-300">
               {JSON.stringify(selectedNode.rawJson, null, 2)}
             </pre>
           )}

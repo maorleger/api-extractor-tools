@@ -22,12 +22,9 @@ export default function JsonInput() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4">
-      <div className="flex items-center justify-between mb-2">
-        <label
-          htmlFor="json-input"
-          className="text-sm font-medium text-gray-300"
-        >
+    <div className="flex h-full flex-col p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <label htmlFor="json-input" className="text-sm font-medium text-gray-300">
           Paste API Extractor JSON
         </label>
         <div className="flex items-center gap-2">
@@ -35,9 +32,7 @@ export default function JsonInput() {
           <button
             onClick={handleParse}
             disabled={isLoading || !jsonText.trim()}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 
-                       disabled:cursor-not-allowed text-white text-sm font-medium 
-                       rounded transition-colors"
+            className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
           >
             {isLoading ? "Parsing..." : "Parse"}
           </button>
@@ -50,16 +45,14 @@ export default function JsonInput() {
         onChange={(e) => setJsonText(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder='{"metadata": {...}, "kind": "Package", ...}'
-        className={`flex-1 w-full p-3 bg-gray-800 border rounded-lg font-mono text-sm
-                    text-gray-100 placeholder-gray-500 resize-none focus:outline-none 
-                    focus:ring-2 focus:ring-blue-500 ${
-                      parsedTree ? "min-h-[100px]" : "min-h-[200px]"
-                    } ${error ? "border-red-500" : "border-gray-600"}`}
+        className={`w-full flex-1 resize-none rounded-lg border bg-gray-800 p-3 font-mono text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          parsedTree ? "min-h-[100px]" : "min-h-[200px]"
+        } ${error ? "border-red-500" : "border-gray-600"}`}
         spellCheck={false}
       />
 
       {error && (
-        <div className="mt-2 p-2 bg-red-900/50 border border-red-700 rounded text-red-300 text-sm">
+        <div className="mt-2 rounded border border-red-700 bg-red-900/50 p-2 text-sm text-red-300">
           <strong>Error:</strong> {error}
         </div>
       )}
